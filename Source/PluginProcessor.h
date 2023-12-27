@@ -64,6 +64,21 @@ public:
     juce::AudioProcessorValueTreeState apvts {*this, nullptr, "Parameters", createParameterLayout()};
     
 private:
+    /* Concept of DSP namespace - define a chain and pass in a processing context that will run through each element in the chain  automatically. E.g. Four filter elements in a chain to process cut, hi cut, slope etc
+        The DSP namespace uses alot of nested namespaces and template meta programming
+        Here I'm creating a type aliases to eliminate template and namespace definitions:
+     */
+    using Filter = juce::dsp::IIR::Filter<float>;
+    
+    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+    
+    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
+    
+    MonoChain leftChain, rightChain;
+
+    
+    
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
