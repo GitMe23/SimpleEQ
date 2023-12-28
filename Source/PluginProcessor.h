@@ -10,12 +10,20 @@
 
 #include <JuceHeader.h>
 
+//enum for slope to give us specific settings to switch from in a switch statement in PluginProcessor.cpp prepareToPlay()
+enum Slope
+{
+    Slope_12,
+    Slope_24,
+    Slope_36,
+    Slope_48
+};
 // Extracting params from apvts, use a data structure to represent all of the param values for readability
 struct ChainSettings
 {
     float peakFreq { 0 }, peakGainInDecibels { 0 }, peakQuality {1.f};
     float lowCutFreq { 0 }, highCutFreq { 0 };
-    int lowCutSlope { 0 }, highCutSlope { 0 };
+    Slope lowCutSlope { Slope::Slope_12 }, highCutSlope { Slope::Slope_12 };
 };
 
 // helper function to return the param values in the data struct
@@ -81,6 +89,7 @@ private:
      */
     using Filter = juce::dsp::IIR::Filter<float>;
     
+    // Cut filters built with their own processor chain instance:
     using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
     
     using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
