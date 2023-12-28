@@ -10,6 +10,17 @@
 
 #include <JuceHeader.h>
 
+// Extracting params from apvts, use a data structure to represent all of the param values for readability
+struct ChainSettings
+{
+    float peakFreq { 0 }, peakGainInDecibels { 0 }, peakQuality {1.f};
+    float lowCutFreq { 0 }, highCutFreq { 0 };
+    int lowCutSlope { 0 }, highCutSlope { 0 };
+};
+
+// helper function to return the param values in the data struct
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts);
+
 //==============================================================================
 /**
 */
@@ -64,6 +75,25 @@ public:
     juce::AudioProcessorValueTreeState apvts {*this, nullptr, "Parameters", createParameterLayout()};
     
 private:
+    /* Concept of DSP namespace - define a chain and pass in a processing context that will run through each element in the chain  automatically. E.g. Four filter elements in a chain to process cut, hi cut, slope etc
+        The DSP namespace uses alot of nested namespaces and template meta programming
+        Here I'm creating a type aliases to eliminate template and namespace definitions:
+     */
+    using Filter = juce::dsp::IIR::Filter<float>;
+    
+    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+    
+    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
+    
+    MonoChain leftChain, rightChain;
+
+    enum ChainPositions
+    {
+        LowCut,
+        Peak,
+        HighCut
+    };
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
