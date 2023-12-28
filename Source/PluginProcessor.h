@@ -103,6 +103,14 @@ private:
         HighCut
     };
     
+    void updatePeakFilter(const ChainSettings& chainSettings);
+    
+    /* create our own alias for Juce's Coefficients class (we use this for easier declaration of helper function to update coefficients)
+        No member variables so we'll keep the helper functon as a static member function
+     */
+    using Coefficients = Filter::CoefficientsPtr;
+    static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
