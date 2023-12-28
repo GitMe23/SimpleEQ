@@ -108,6 +108,36 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     
     leftChain.prepare(spec);
     rightChain.prepare(spec);
+    
+    /* Producing coeffecients using static helper functions that are part of the IIR class
+        Note the gainFactor arg expects unit in gain value so need to convert decibel units to gain
+        (use Juce's helper method juce::Decibels::decibelsToGain() )
+     */
+    auto chainSettings = getChainSettings(apvts);
+    
+    // coefficients for the peak filter. we can set the filter's coefficients accordingly
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+                                                                                sampleRate,
+                                                                                chainSettings.peakFreq,
+                                                                                chainSettings.peakQuality,
+                                                                                juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels)
+                                                                                );
+    
+    /* You can access links in the processor chin via getters i.e. leftChain.get<int Index>()
+        In the header file, PluginProcessor.h, we can declare an enumeration to define each link's position in the chain
+
+        Access peak filter link with leftChain.get<ChainPositions::Peak>() and assign coefficients
+        Our peakCoefficients declared object above is a reference counted wrapper around an array allocated on the heap
+        IIR::Coefficients are Reference-counted objects that own a juce::Array<float>
+        These helper functions return instances allocated on the heap
+        You must dereference them to copy the underlying coefficients array
+        Note Juce's design of the coefficients object: allocating on the heap in an audio callback is not considered good design.
+    */
+    
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    
+    
 }
 
 void SimpleEQAudioProcessor::releaseResources()
@@ -163,6 +193,19 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    auto chainSettings = getChainSettings(apvts);
+    
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+                                                                                getSampleRate(),
+                                                                                chainSettings.peakFreq,
+                                                                                chainSettings.peakQuality,
+                                                                                juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels)
+                                                                                );
+ 
+    
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    
     // Extract left and right (typically 0 and 1) from buffer supplied from host
     // create an audio block to wrap buffer
     juce::dsp::AudioBlock<float> block(buffer);
@@ -219,23 +262,43 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
     // whose contents will have been created by the getStateInformation() call.
 }
 
+/*
+ Two ways to get param values from apvts:
+    1. getParameter(String value) - but this returns a normalised value
+    2. getRawParameterValue() returns atomic (indivisible, see atomicity and thread safety) values handy for interacting with the GUI
+ */
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts)
+{
+    ChainSettings settings;
+    
+    settings.lowCutFreq = apvts.getRawParameterValue("LowCut Freq")->load();
+    settings.highCutFreq = apvts.getRawParameterValue("HighCut Freq")->load();
+    settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
+    settings.peakGainInDecibels = apvts.getRawParameterValue("Peak Gain")->load();
+    settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
+    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
+    
+    return settings;
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     
     layout.add(std::make_unique<juce::AudioParameterFloat>("LowCut Freq",
                                                           "LowCut Freq",
-                                                          juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                          juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f),
                                                           20.f));
     
     layout.add(std::make_unique<juce::AudioParameterFloat>("HighCut Freq",
                                                           "HighCut Freq",
-                                                          juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                          juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f),
                                                           750.f));
     
     layout.add(std::make_unique<juce::AudioParameterFloat>("Peak Freq",
                                                           "Peak Freq",
-                                                          juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                          juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f),
                                                           750.f));
     
     // Express gain in decibels. Slider intervals in half decibels. skew of 1 keeps a linear fashion, default gain should be 0
