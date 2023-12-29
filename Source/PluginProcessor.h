@@ -111,20 +111,25 @@ private:
     using Coefficients = Filter::CoefficientsPtr;
     static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
     
+    template<int Index, typename ChainType, typename CoefficientType>
+    void update(ChainType& chain, const CoefficientType& coefficients)
+    {
+        updateCoefficients(chain.template get<Index>().coefficients, coefficients[Index]);
+        chain.template setBypassed<Index>(false);
+    }
+    
     template<typename ChainType, typename CoefficientType>
-    void updateCutFilter(ChainType& leftLowCut,
-                         const CoefficientType& cutCoefficients,
+    void updateCutFilter(ChainType& chain,
+                         const CoefficientType& coefficients,
                          const Slope& lowCutSlope)
 
                         
     {
-   
-        
         // bypass all links in the chain:
-        leftLowCut.template setBypassed<0>(true);
-        leftLowCut.template setBypassed<1>(true);
-        leftLowCut.template setBypassed<2>(true);
-        leftLowCut.template setBypassed<3>(true);
+        chain.template setBypassed<0>(true);
+        chain.template setBypassed<1>(true);
+        chain.template setBypassed<2>(true);
+        chain.template setBypassed<3>(true);
         
         // We want to switch based on the slope setting. We've defined an enum to define slope setting in headers file
         
@@ -146,93 +151,35 @@ private:
             /*
              if order is 2, meaning 12 db/oct slope, the helper method will return an array of 1 coefficient object only
             which we will assign to the first filter in the cut filter chain. Also, stop bypassing that filter chain
+             
+             Below switch statement is modern C++ design, it processes everything in the array UP TO index
+             e.g. indices 0-3 for 48, 0-2 for 36, 0-1 for 24, 0 for 12.
              */
-            case Slope_12:
+                
+            case Slope_48:
             {
-                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
-                leftLowCut.template setBypassed<0>(false);
-                break;
-            }
-            case Slope_24:
-            {
-                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
-                leftLowCut.template setBypassed<0>(false);
-                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
-                leftLowCut.template setBypassed<1>(false);
-                break;
+                update<3>(chain, coefficients);
             }
             case Slope_36:
             {
-                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
-                leftLowCut.template setBypassed<0>(false);
-                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
-                leftLowCut.template setBypassed<1>(false);
-                *leftLowCut.template get<2>().coefficients = *cutCoefficients[2];
-                leftLowCut.template setBypassed<2>(false);
-                break;
-            }
-            case Slope_48:
-            {
-                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
-                leftLowCut.template setBypassed<0>(false);
-                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
-                leftLowCut.template setBypassed<1>(false);
-                *leftLowCut.template get<2>().coefficients = *cutCoefficients[2];
-                leftLowCut.template setBypassed<2>(false);
-                *leftLowCut.template get<3>().coefficients = *cutCoefficients[3];
-                leftLowCut.template setBypassed<3>(false);
-                break;
-            }
-        }
-        
-        auto& rightLowCut = rightChain.get<ChainPositions::LowCut>();
-        
-        rightLowCut.setBypassed<0>(true);
-        rightLowCut.setBypassed<1>(true);
-        rightLowCut.setBypassed<2>(true);
-        rightLowCut.setBypassed<3>(true);
-            
-        switch ( lowCutSlope )
-        {
-
-            case Slope_12:
-            {
-                *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
-                rightLowCut.setBypassed<0>(false);
-                break;
+                update<2>(chain, coefficients);
             }
             case Slope_24:
             {
-                *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
-                rightLowCut.setBypassed<0>(false);
-                *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
-                rightLowCut.setBypassed<1>(false);
-                break;
+                update<1>(chain, coefficients);
             }
-            case Slope_36:
+            case Slope_12:
             {
-                *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
-                rightLowCut.setBypassed<0>(false);
-                *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
-                rightLowCut.setBypassed<1>(false);
-                *rightLowCut.get<2>().coefficients = *cutCoefficients[2];
-                rightLowCut.setBypassed<2>(false);
-                break;
-            }
-            case Slope_48:
-            {
-                *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
-                rightLowCut.setBypassed<0>(false);
-                *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
-                rightLowCut.setBypassed<1>(false);
-                *rightLowCut.get<2>().coefficients = *cutCoefficients[2];
-                rightLowCut.setBypassed<2>(false);
-                *rightLowCut.get<3>().coefficients = *cutCoefficients[3];
-                rightLowCut.setBypassed<3>(false);
-                break;
+                update<0>(chain, coefficients);
             }
         }
     }
+    
+    void updateLowCutFilters(const ChainSettings& chainSettings);
+    void updateHighCutFilters(const ChainSettings& chainSettings);
+    
+    void updateFilters();
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
