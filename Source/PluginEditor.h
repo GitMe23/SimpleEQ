@@ -11,6 +11,19 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+// inherit from slider for all rotary knobs...
+struct CustomRotarySlider : juce::Slider
+{
+    CustomRotarySlider() : juce::Slider(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
+                                        juce::Slider::TextEntryBoxPosition::NoTextBox)
+    {
+        
+    }
+    
+                                        
+};
+
+
 //==============================================================================
 /**
 */
@@ -29,5 +42,17 @@ private:
     // access the processor object that created it.
     SimpleEQAudioProcessor& audioProcessor;
 
+    CustomRotarySlider peakFreqSlider,
+    peakGainSlider,
+    peakQualitySlider,
+    lowCutFreqSlider,
+    highCutFreqSlider;
+    
+    // Function to iterate over all above components in a vector...
+    std::vector<juce::Component*> getComps();
+    
+    
+    
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessorEditor)
 };
