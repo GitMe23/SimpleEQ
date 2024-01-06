@@ -93,9 +93,9 @@ void SimpleEQAudioProcessor::changeProgramName (int index, const juce::String& n
 //==============================================================================
 void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
-    // Must prepare filters before using them by passing process spec object to the chains which will pass it to each link in the chain
+    //  any pre-playback initialisation
+    // Must prepare filters before using them by passing process spec object to the chains which
+    // will pass it to each link in the chain
     
     juce::dsp::ProcessSpec spec;
     
@@ -242,18 +242,35 @@ void SimpleEQAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+    
+    // Using a memory output stream handle the apvts state to memory block
+    juce::MemoryOutputStream mos(destData, true);
+    apvts.state.writeToStream(mos);
 }
 
 void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+    // Restore plugin state from memory using helper function...
+    
+    auto tree = juce::ValueTree::readFromData(data, sizeInBytes);
+    
+    // Once we know the  state is valid, then replace plugins state and restore param values.
+    if ( tree.isValid() )
+    {
+        apvts.replaceState(tree);
+        updateFilters();
+    }
+
+
 }
 
 /*
  Two ways to get param values from apvts:
     1. getParameter(String value) - but this returns a normalised value
     2. getRawParameterValue() returns atomic (indivisible, see atomicity and thread safety) values handy for interacting with the GUI
+
  */
 ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts)
 {
